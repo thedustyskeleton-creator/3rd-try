@@ -1,0 +1,67 @@
+package com.example.mod.mixin;
+
+import com.example.mod.ExampleMod;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.boss.dragon.EnderDragonEntity;
+import net.minecraft.entity.boss.WitherEntity;
+import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.scoreboard.Team;
+import net.minecraft.world.World;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(LivingEntity.class)
+public class LivingEntityMixin {
+
+    @Inject(method = "onDeath", at = @At("HEAD"))
+    private void onDeathMixin(DamageSource source, CallbackInfo ci) {
+        LivingEntity killedEntity = (LivingEntity) (Object) this;
+        World world = killedEntity.getWorld();
+
+        if (world.isClient) {
+            return;
+        }
+
+        if (source.getAttacker() instanceof PlayerEntity player) {
+            if (player.getOffHandStack().isOf(ExampleMod.SOUL_GEM)) {
+                if (killedEntity instanceof MobEntity && !(killedEntity instanceof PlayerEntity)) {
+                    // Prevent bosses from being resurrected
+                    if (killedEntity instanceof EnderDragonEntity || killedEntity instanceof WitherEntity) {
+                        return;
+                    }
+
+                    EntityType<?> entityType = killedEntity.getType();
+                    Entity newEntity = entityType.create(world);
+
+                    if (newEntity instanceof MobEntity newMob) {
+                        newMob.refreshPositionAndAngles(killedEntity.getX(), killedEntity.getY(), killedEntity.getZ(), killedEntity.getYaw(), killedEntity.getPitch());
+                        world.spawnEntity(newMob);
+
+                        // Set health to half
+                        newMob.setHealth(newMob.getMaxHealth() / 2.0f);
+
+                        // Make the mob an ally using scoreboards
+                        Scoreboard scoreboard = world.getScoreboard();
+                        String teamName = "player_ally_" + player.getUuidAsString().substring(0, 8);
+                        Team team = scoreboard.getTeam(teamName);
+                        if (team == null) {
+                            team = scoreboard.addTeam(teamName);
+                            team.setFriendlyFireAllowed(false);
+                        }
+
+                        // Add both player and mob to the team to ensure they are allies
+                        scoreboard.addPlayerToTeam(player.getCommandSenderName(), team);
+                        scoreboard.addPlayerToTeam(newMob.getCommandSenderName(), team);
+                    }
+                }
+            }
+        }
+    }
+}
