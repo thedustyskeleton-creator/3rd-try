@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "EEE",
+    "EDE",
+    "EEE"
+  ],
+  "key": {
+    "E": {
+      "item": "minecraft:echo_shard"
+    },
+    "D": {
+      "item": "minecraft:diamond"
+    }
+  },
+  "result": {
+    "item": "soul_gem:soul_gem",
+    "count": 1
+  }
+}
